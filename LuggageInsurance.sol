@@ -19,15 +19,17 @@ contract LuggageInsuranceContract {
     
     Flight public flight;
     Luggage public luggage;
-    address addressInsurance;
-    address addressInsuree;
-    address addressOracle = 0x72C396cBE08ed7cE86EB84C2E25Cd6800aC7d7f4;
-    uint premium= 100 wei;
+    address payable addressInsurance;
+    address payable addressInsuree;
+    address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
+    uint premium= 5 ether;
     string public status;
     uint public balance;
     uint public timeDifference;
+    //in Sec
+    uint public timeLimitForPayOut = 30;
         
-    constructor(address _addressInsuree) public payable{
+    constructor(address payable _addressInsuree) public payable{
         addressInsuree = _addressInsuree;
         addressInsurance = msg.sender;
         status = "initialized";
@@ -98,11 +100,18 @@ contract LuggageInsuranceContract {
         }
     }
     
-    function checkClaim() private{
-        require(flight.landed == true);
-        //check both cases of delay and lost
-        if(luggage.onBelt){
+    function checkClaim() private {
+        // require(flight.landed == true);
+        // check both cases of delay and lost
+        if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
+            if (timeDifference > timeLimitForPayOut) {
+                addressInsuree.transfer(balance);
+                status = "claimPaid";
+            } else {
+                addressInsurance.transfer(balance);
+                status = "noClaimPaid";
+            }
         }
     }
 
