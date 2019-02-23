@@ -49,6 +49,13 @@ contract LuggageInsuranceContract {
         luggageID = _luggageID;
         status = "checkedIn";
     }
+    
+    function boardingPassenger(address _addressInsuree) public{
+        require(msg.sender == addressOracle);
+        require(_addressInsuree == addressInsuree);
+        require(compareStrings(status, "checkedIn"));
+        status = "boarded";
+    }
 
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
