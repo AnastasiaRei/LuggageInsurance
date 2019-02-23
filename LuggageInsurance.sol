@@ -8,16 +8,24 @@ contract LuggageInsuranceContract {
         uint arrivalTime;
         string departureAirport;
         bool landed;
+        uint timeLanded;
+    }
+    
+    struct Luggage{
+        string id;
+        bool onBelt; 
+        uint timeOnBelt;
     }
     
     Flight public flight;
+    Luggage public luggage;
     address addressInsurance;
     address addressInsuree;
     address addressOracle = 0x72C396cBE08ed7cE86EB84C2E25Cd6800aC7d7f4;
     uint premium= 100 wei;
     string public status;
     uint public balance;
-    string public luggageID;
+    uint public timeDifference;
         
     constructor(address _addressInsuree) public payable{
         addressInsuree = _addressInsuree;
@@ -33,7 +41,14 @@ contract LuggageInsuranceContract {
     ) public {
         require(msg.sender == addressInsurance);
         require(compareStrings(status, "initialized"));
-        flight = Flight(flightNumber, departureTime, arrivalTime, departureAirport,false);
+        flight = Flight(
+            flightNumber,
+            departureTime,
+            arrivalTime,
+            departureAirport,
+            false,
+            0
+        );
         status = "flightSet";
     }
     
@@ -48,7 +63,7 @@ contract LuggageInsuranceContract {
     function checkInLuggage(string memory _luggageID) public{
         require(msg.sender == addressOracle);
         require(compareStrings(status, "paid"));
-        luggageID = _luggageID;
+        luggage = Luggage(_luggageID, false, 0);
         status = "checkedIn";
     }
     
@@ -65,8 +80,29 @@ contract LuggageInsuranceContract {
         if(compareStrings(flightStatus, "landed")){
             status = "landed";
             flight.landed = true;
-        }else{
+            flight.timeLanded = now;
+        }else {
             //ask oracle again in some time
+        }
+    }
+    
+    function setLuggageStatus(string memory _luggageID, bool _onBelt) public{
+        require(msg.sender == addressOracle);
+        require(compareStrings(status, "landed"));
+        require(compareStrings(_luggageID, luggage.id));
+        if(_onBelt == true){
+            status = "onBelt";
+            luggage.onBelt = true;
+            luggage.timeOnBelt = now;
+            checkClaim();
+        }
+    }
+    
+    function checkClaim() private{
+        require(flight.landed == true);
+        //check both cases of delay and lost
+        if(luggage.onBelt){
+            timeDifference = luggage.timeOnBelt - flight.timeLanded;
         }
     }
 
