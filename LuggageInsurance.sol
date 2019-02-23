@@ -1,15 +1,19 @@
 pragma solidity ^0.5.4;
 
 contract LuggageInsuranceContract {
-    address addressInsuree;
     address addressInsurance;
+    address addressInsuree;
+    address addressOracle = 0x72C396cBE08ed7cE86EB84C2E25Cd6800aC7d7f4;
+    /*
     string flightNumber;
     uint departureTime;
     uint arrivalTime;
     string departureAirport;
+    */
     uint premium= 100 wei;
     string public status;
     uint public balance;
+    string public luggageID;
         
     constructor(
         address _addressInsuree
@@ -37,7 +41,13 @@ contract LuggageInsuranceContract {
         require(msg.value == premium);
         balance += msg.value;
         status = "paid";
-        
+    }
+
+    function checkInLuggage(string memory _luggageID) public{
+        require(msg.sender == addressOracle);
+        require(compareStrings(status, "paid"));
+        luggageID = _luggageID;
+        status = "checkedIn";
     }
 
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
