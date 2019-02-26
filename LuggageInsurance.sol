@@ -4,9 +4,7 @@ contract LuggageInsuranceContract {
     
     struct Flight{
         string flightNumber;
-        uint departureTime;
-        uint arrivalTime;
-        string departureAirport;
+        uint departureDay;
         bool landed;
         uint timeLanded;
     }
@@ -19,7 +17,7 @@ contract LuggageInsuranceContract {
     
     Flight public flight;
     Luggage public luggage;
-    address payable addressInsurance;
+    address payable addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
     address payable addressInsuree;
     address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     uint premium= 5 ether;
@@ -29,25 +27,20 @@ contract LuggageInsuranceContract {
     //in Sec
     uint public timeLimitForPayOut = 30;
         
-    constructor(address payable _addressInsuree) public payable{
-        addressInsuree = _addressInsuree;
-        addressInsurance = msg.sender;
+    constructor() public payable{
+        addressInsuree = msg.sender;
         status = "initialized";
     }
     
     function setFlight(
         string memory flightNumber,
-        uint departureTime,
-        uint arrivalTime,
-        string memory departureAirport
+        uint departureDay
     ) public {
-        require(msg.sender == addressInsurance);
+        require(msg.sender == addressInsuree);
         require(compareStrings(status, "initialized"));
         flight = Flight(
             flightNumber,
-            departureTime,
-            arrivalTime,
-            departureAirport,
+            departureDay,
             false,
             0
         );
@@ -67,6 +60,13 @@ contract LuggageInsuranceContract {
         require(compareStrings(status, "paid"));
         luggage = Luggage(_luggageID, false, 0);
         status = "checkedIn";
+    }
+    
+    function revokeContract() public{
+        require(msg.sender == addressInsuree);
+        require(compareStrings(status, "checkedIn") || compareStrings(status, "paid"));
+        addressInsuree.transfer(balance);
+        status = "revoked";
     }
     
     function boardingPassenger(address _addressInsuree) public{
@@ -114,7 +114,7 @@ contract LuggageInsuranceContract {
             }
         }
     }
-
+    
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
