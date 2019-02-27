@@ -37,6 +37,14 @@ contract LuggageInsuranceContract {
     uint public timeDifference;
     //in Sec
     uint public timeLimitForPayOut = 30;
+    
+    modifier onlyBy(address _account) {
+        require(
+            msg.sender == _account,
+            "Sender not authorized."
+        );
+        _;
+    }
         
     constructor() public payable{
         insuree = Insuree(false, msg.sender);
@@ -46,8 +54,7 @@ contract LuggageInsuranceContract {
     function setFlight(
         string memory flightNumber,
         uint departureDay
-    ) public {
-        require(msg.sender == insuree.addressInsuree);
+    ) public onlyBy(insuree.addressInsuree){
         require(status == State.inactive);
         flight = Flight(
             flightNumber,
@@ -58,8 +65,7 @@ contract LuggageInsuranceContract {
         );
     }
     
-    function payPremium() public payable{
-        require(msg.sender == insuree.addressInsuree);
+    function payPremium() public payable onlyBy(insuree.addressInsuree) {
         require(flight.initialized);
         require(status == State.inactive);
         require(msg.value == premium);
@@ -67,31 +73,27 @@ contract LuggageInsuranceContract {
         status = State.active;
     }
 
-    function checkInLuggage(string memory _luggageID) public{
-        require(msg.sender == addressOracle);
+    function checkInLuggage(string memory _luggageID) public onlyBy(addressOracle) {
         require(status == State.active);
         require(!luggage.initialized);
         luggage = Luggage(_luggageID, false, 0, true);
     }
     
-    function revokeContract() public{
-        require(msg.sender == insuree.addressInsuree);
+    function revokeContract() public onlyBy(insuree.addressInsuree) {
         require(status == State.active);
         require(!insuree.boarded);
         insuree.addressInsuree.transfer(balance);
         status = State.revoked;
     }
     
-    function boardingPassenger(address _addressInsuree) public{
-        require(msg.sender == addressOracle);
+    function boardingPassenger(address _addressInsuree) public onlyBy(addressOracle) {
         require(_addressInsuree == insuree.addressInsuree);
         require(luggage.initialized);
         require(!insuree.boarded);
         insuree.boarded = true;
     }
     
-    function setFlightStatus(string memory flightStatus) public{
-        require(msg.sender == addressOracle);
+    function setFlightStatus(string memory flightStatus) public onlyBy(addressOracle) {
         require(insuree.boarded);
         if(compareStrings(flightStatus, "landed")){
             flight.landed = true;
@@ -101,9 +103,8 @@ contract LuggageInsuranceContract {
         }
     }
     
-    function setLuggageStatus(string memory _luggageID, bool _onBelt) public{
+    function setLuggageStatus(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) {
         require(status == State.active);
-        require(msg.sender == addressOracle);
         require(flight.landed);
         require(compareStrings(_luggageID, luggage.id));
         if(_onBelt == true){
@@ -127,6 +128,10 @@ contract LuggageInsuranceContract {
                 status = State.closed;
             }
         }
+    }
+    
+    function getStatus() public view returns (State, bool, bool, bool, bool){
+        return (status, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
     }
     
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
