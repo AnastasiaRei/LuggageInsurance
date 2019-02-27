@@ -33,6 +33,7 @@ contract LuggageInsuranceContract {
     address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     uint premium= 5 ether;
     State public status;
+    uint timeContractActivated;
     uint public balance;
     uint public timeDifference;
     //in Sec
@@ -71,6 +72,7 @@ contract LuggageInsuranceContract {
         require(msg.value == premium);
         balance += msg.value;
         status = State.active;
+        timeContractActivated = now;
     }
 
     function checkInLuggage(string memory _luggageID) public onlyBy(addressOracle) {
@@ -81,6 +83,7 @@ contract LuggageInsuranceContract {
     
     function revokeContract() public onlyBy(insuree.addressInsuree) {
         require(status == State.active);
+        require(now <= timeContractActivated + 14 days);
         require(!insuree.boarded);
         insuree.addressInsuree.transfer(balance);
         status = State.revoked;
