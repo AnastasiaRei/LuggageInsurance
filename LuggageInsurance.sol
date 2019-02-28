@@ -110,9 +110,11 @@ contract LuggageInsuranceContract {
     
     function setFlightStatus(string memory flightStatus) public onlyBy(addressOracle) {
         require(insuree.boarded);
+        require(!flight.landed);
         if(compareStrings(flightStatus, "landed")){
             flight.landed = true;
             flight.timeLanded = now;
+            //setTimeOut function that triggers checkcailm function 1 hours after time landed
         }else {
             //ask oracle again in some time
         }
@@ -120,6 +122,7 @@ contract LuggageInsuranceContract {
     
     function setLuggageStatus(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) ifState(State.active) ifLanded() {
         require(compareStrings(_luggageID, luggage.id));
+        require(!luggage.onBelt);
         if(_onBelt == true){
             luggage.onBelt = true;
             luggage.timeOnBelt = now;
@@ -127,7 +130,7 @@ contract LuggageInsuranceContract {
         }
     }
     
-    function checkClaim() private ifState(State.active) ifLanded() {
+    function checkClaim() public ifState(State.active) ifLanded() {
         // check both cases of delay and lost
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
@@ -138,6 +141,9 @@ contract LuggageInsuranceContract {
                 addressInsurance.transfer(balance);
                 status = State.closed;
             }
+        }else if(now > flight.timeLanded + 1 hours){
+             insuree.addressInsuree.transfer(balance);
+             status = State.closed;
         }
     }
     
