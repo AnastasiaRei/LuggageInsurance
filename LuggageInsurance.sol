@@ -35,33 +35,25 @@ contract LuggageInsuranceContract {
     State public status;
     uint timeContractActivated;
     uint public balance;
+    uint public revokeTimeLimit = 14 days;
     uint public timeDifference;
-    //in Sec
-    uint public timeLimitForPayOut = 30;
+    uint public timeLimitLuggageLost = 1 hours;
+    uint public timeLimitForPayOut = 30 minutes;
     
     modifier onlyBy(address _account) {
-        require(
-            msg.sender == _account,
-            "Sender not authorized."
-        );
+        require(msg.sender == _account, "Sender not authorized.");
         _;
     }
     
      modifier ifState(State _status) {
-        require(
-            _status == status
-        );
+        require(_status == status);
         _;
     }
     
     modifier ifLanded() {
-        require(
-        
-        flight.landed
-            
-        );
+        require(flight.landed);
         _;
-        }
+    }
         
     constructor() public payable{
         insuree = Insuree(false, msg.sender);
@@ -95,7 +87,7 @@ contract LuggageInsuranceContract {
     }
     
     function revokeContract() public onlyBy(insuree.addressInsuree) ifState(State.active) {
-        require(now <= timeContractActivated + 14 days);
+        require(now <= timeContractActivated + revokeTimeLimit);
         require(!insuree.boarded);
         insuree.addressInsuree.transfer(balance);
         status = State.revoked;
@@ -141,7 +133,7 @@ contract LuggageInsuranceContract {
                 addressInsurance.transfer(balance);
                 status = State.closed;
             }
-        }else if(now > flight.timeLanded + 1 hours){
+        } else if(now > flight.timeLanded + timeLimitLuggageLost){
              insuree.addressInsuree.transfer(balance);
              status = State.closed;
         }
