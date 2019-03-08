@@ -31,7 +31,7 @@ contract LuggageInsuranceContract {
     Insuree public insuree;
     address payable addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
     address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    uint premium= 100000000000000000 wei;
+    uint premium= 5 ether;
     State public state;
     uint timeContractActivated;
     uint public balance;
@@ -56,6 +56,8 @@ contract LuggageInsuranceContract {
     }
         
     constructor() public payable{
+        require(addressOracle != msg.sender);
+        require(addressInsurance != msg.sender);
         insuree = Insuree(false, msg.sender);
         state = State.inactive;
     }
