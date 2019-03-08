@@ -37,7 +37,7 @@ contract LuggageInsuranceContract {
     uint public balance;
     uint public revokeTimeLimit = 14 days;
     uint public timeDifference;
-    uint public timeLimitLuggageLost = 1 hours;
+    uint public timeLimitLuggageLost = 90 minutes;
     uint public timeLimitForPayOut = 30 minutes;
     
     modifier onlyBy(address _account) {
