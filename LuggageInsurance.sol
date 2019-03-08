@@ -31,8 +31,8 @@ contract LuggageInsuranceContract {
     Insuree public insuree;
     address payable addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
     address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    uint premium= 5 ether;
-    State public status;
+    uint premium= 100000000000000000 wei;
+    State public state;
     uint timeContractActivated;
     uint public balance;
     uint public revokeTimeLimit = 14 days;
@@ -45,8 +45,8 @@ contract LuggageInsuranceContract {
         _;
     }
     
-     modifier ifState(State _status) {
-        require(_status == status);
+     modifier ifState(State _state) {
+        require(_state == state);
         _;
     }
     
@@ -57,7 +57,7 @@ contract LuggageInsuranceContract {
         
     constructor() public payable{
         insuree = Insuree(false, msg.sender);
-        status = State.inactive;
+        state = State.inactive;
     }
     
     function setFlight(
@@ -77,7 +77,7 @@ contract LuggageInsuranceContract {
         require(flight.initialized);
         require(msg.value == premium);
         balance += msg.value;
-        status = State.active;
+        state = State.active;
         timeContractActivated = now;
     }
 
@@ -90,7 +90,7 @@ contract LuggageInsuranceContract {
         require(now <= timeContractActivated + revokeTimeLimit);
         require(!insuree.boarded);
         insuree.addressInsuree.transfer(balance);
-        status = State.revoked;
+        state = State.revoked;
     }
     
     function boardingPassenger(address _addressInsuree) public onlyBy(addressOracle) {
@@ -100,10 +100,10 @@ contract LuggageInsuranceContract {
         insuree.boarded = true;
     }
     
-    function setFlightStatus(string memory flightStatus) public onlyBy(addressOracle) {
+    function setFlightState(string memory flightState) public onlyBy(addressOracle) {
         require(insuree.boarded);
         require(!flight.landed);
-        if(compareStrings(flightStatus, "landed")){
+        if(compareStrings(flightState, "landed")){
             flight.landed = true;
             flight.timeLanded = now;
             //setTimeOut function that triggers checkcailm function 1 hours after time landed
@@ -112,7 +112,7 @@ contract LuggageInsuranceContract {
         }
     }
     
-    function setLuggageStatus(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) ifState(State.active) ifLanded() {
+    function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) ifState(State.active) ifLanded() {
         require(compareStrings(_luggageID, luggage.id));
         require(!luggage.onBelt);
         if(_onBelt == true){
@@ -128,19 +128,19 @@ contract LuggageInsuranceContract {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
             if (timeDifference > timeLimitForPayOut) {
                 insuree.addressInsuree.transfer(balance);
-                status = State.closed;
+                state = State.closed;
             } else {
                 addressInsurance.transfer(balance);
-                status = State.closed;
+                state = State.closed;
             }
         } else if(now > flight.timeLanded + timeLimitLuggageLost){
              insuree.addressInsuree.transfer(balance);
-             status = State.closed;
+             state = State.closed;
         }
     }
     
-    function getStatus() public view returns (State, bool, bool, bool, bool){
-        return (status, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
+    function getState() public view returns (State, bool, bool, bool, bool){
+        return (state, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
     }
     
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
