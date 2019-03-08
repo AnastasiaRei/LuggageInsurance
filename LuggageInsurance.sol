@@ -48,8 +48,8 @@ contract LuggageInsuranceContract {
     Insuree public insuree;
     
     //addresse
-    address payable addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
-    address addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
+    address payable private addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
+    address private addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     //premium
     uint premium= 5 ether;
     //store enum
@@ -78,12 +78,24 @@ contract LuggageInsuranceContract {
         require(flight.landed);
         _;
     }
+    
+    //event to show a contract for a certain addressInsuree was created
+    event ContractCreated(address indexed _addressInsuree, State _state);
+    //event to show premium was paid and contract activated
+    event PremiumPaid(uint _premium, State _state);
+    //event to show insurance amount was paid to insuree
+    event InsuranceAmountPaid(uint _balance, address _addressInsuree, State _state);
+    //event to show there was no claim as premium was paid to insurance
+    event NoClaim(uint _balance, State state);
+    
     //constructor 
     constructor() public payable{
         require(addressOracle != msg.sender);
         require(addressInsurance != msg.sender);
         insuree = Insuree(false, msg.sender);
         state = State.inactive;
+        //throw Event ContractCreated() 
+        emit ContractCreated(msg.sender, state);
     }
     //setFlight() function
     function setFlight(
@@ -105,6 +117,7 @@ contract LuggageInsuranceContract {
         balance += msg.value;
         state = State.active;
         timeContractActivated = now;
+        emit PremiumPaid(msg.value, state);
     }
     //checkInLuggage() function
     function checkInLuggage(string memory _luggageID) public onlyBy(addressOracle) ifState(State.active) {
@@ -148,18 +161,21 @@ contract LuggageInsuranceContract {
         }
     }
     //checkClaim() function
-    function checkClaim() public ifState(State.active) ifLanded() {
+    function checkClaim() public payable ifState(State.active) ifLanded() {
         // check both cases of delay and lost
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
             if (timeDifference > timeLimitForPayOut) {
+                emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
                 insuree.addressInsuree.transfer(balance);
                 state = State.closed;
             } else {
+                emit NoClaim(balance, state);
                 addressInsurance.transfer(balance);
                 state = State.closed;
             }
         } else if(now > flight.timeLanded + timeLimitLuggageLost){
+            emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
              insuree.addressInsuree.transfer(balance);
              state = State.closed;
         }
