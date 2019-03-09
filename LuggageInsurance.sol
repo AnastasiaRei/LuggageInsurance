@@ -86,7 +86,7 @@ contract LuggageInsuranceContract {
     //event to show insurance amount was paid to insuree
     event InsuranceAmountPaid(uint _balance, address _addressInsuree, State _state);
     //event to show there was no claim as premium was paid to insurance
-    event NoClaim(uint _balance, State state);
+    event NoClaim(uint _balance, State _state);
     
     //constructor 
     constructor() public payable{
