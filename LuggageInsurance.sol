@@ -6,11 +6,11 @@ contract LuggageInsuranceContract {
     struct Flight {
         //flightNumber for insured luggage travel
         string flightNumber;
-        //day of departure
+        //saves day of departure
         uint departureDay;
-        //flight landed in destination airport
+        //saves state flight landed in destination airport
         bool landed;
-        //time the flight landed
+        //saves timestamp the flight is landed
         uint timeLanded;
         //flight is initialized
         bool initialized;
@@ -18,11 +18,11 @@ contract LuggageInsuranceContract {
     
     //create a Luggage datatype
     struct Luggage {
-        //luggageID
+        //saves luggageID
         string id;
         //is the luggage onBelt in destination airport
         bool onBelt; 
-        //timeOnBelt
+        //saves timestamp when luggage is on belt
         uint timeOnBelt;
         //luggage is initialized
         bool initialized;
@@ -94,8 +94,6 @@ contract LuggageInsuranceContract {
         require(addressInsurance != msg.sender);
         insuree = Insuree(false, msg.sender);
         state = State.inactive;
-        //throw Event ContractCreated() 
-        emit ContractCreated(msg.sender, state);
     }
     //setFlight() function
     function setFlight(
@@ -109,6 +107,8 @@ contract LuggageInsuranceContract {
             0, 
             true
         );
+        //throw Event ContractCreated() 
+        emit ContractCreated(msg.sender, state);
     }
     //payPremium() function
     function payPremium() public payable onlyBy(insuree.addressInsuree) ifState(State.inactive) {
