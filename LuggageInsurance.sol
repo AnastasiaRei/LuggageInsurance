@@ -143,6 +143,7 @@ contract LuggageInsuranceContract {
     function setFlightState(string memory flightState) public onlyBy(addressOracle) {
         require(insuree.boarded);
         require(!flight.landed);
+        //compare the hashes of two strings in order to find out whether status is landed
         if(compareStrings(flightState, "landed")){
             flight.landed = true;
             flight.timeLanded = now;
@@ -155,6 +156,7 @@ contract LuggageInsuranceContract {
     function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) ifState(State.active) ifLanded() {
         require(compareStrings(_luggageID, luggage.id));
         require(!luggage.onBelt);
+        //check state onBelt
         if(_onBelt == true){
             luggage.onBelt = true;
             luggage.timeOnBelt = now;
@@ -167,6 +169,7 @@ contract LuggageInsuranceContract {
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
             if (timeDifference > timeLimitForPayOut) {
+                //in case there is an delay throw InsuranceAmountPaid() and transfer insurance amount to insuree
                 emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
                 insuree.addressInsuree.transfer(balance);
                 state = State.closed;
@@ -184,11 +187,11 @@ contract LuggageInsuranceContract {
              state = State.closed;
         }
     }
-    //getState() function 
+    //getState() function returns State, flight.landed, flight.initialized, luggage.onBelt and luggage.initialized
     function getState() public view returns (State, bool, bool, bool, bool){
         return (state, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
     }
-    //compareStrings() function to compare strings with their hashes
+    //compareStrings() function to compare strings by their hashes
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
