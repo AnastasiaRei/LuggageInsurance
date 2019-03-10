@@ -56,11 +56,15 @@ contract LuggageInsuranceContract {
     State public state;
     //overall contract balance
     uint public balance;
-    //time specific storage variables
+    //saves time when the Smart Contract is activated
     uint timeContractActivated;
+    //saves the timeLimit for a revoke
     uint public revokeTimeLimit = 14 days;
+    //saves the timeDifference between flight.timelanded and luggage.timeOnBelt
     uint public timeDifference;
+    //saves the timeLimit for LuggageLost
     uint public timeLimitLuggageLost = 90 minutes;
+    //saves the timeLimit for PayOut
     uint public timeLimitForPayOut = 30 minutes;
     
     //modifier for onlyBy condition
