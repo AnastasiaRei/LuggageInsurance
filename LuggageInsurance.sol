@@ -117,6 +117,7 @@ contract LuggageInsuranceContract {
         balance += msg.value;
         state = State.active;
         timeContractActivated = now;
+         //throw Event PremiumPaid() 
         emit PremiumPaid(msg.value, state);
     }
     //checkInLuggage() function
@@ -162,7 +163,7 @@ contract LuggageInsuranceContract {
     }
     //checkClaim() function
     function checkClaim() public payable ifState(State.active) ifLanded() {
-        // check both cases of delay and lost
+        // check luggage delay
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
             if (timeDifference > timeLimitForPayOut) {
@@ -170,11 +171,14 @@ contract LuggageInsuranceContract {
                 insuree.addressInsuree.transfer(balance);
                 state = State.closed;
             } else {
+                //in case there is no delay throw NoClaim and transfer premium to insurance
                 emit NoClaim(balance, state);
                 addressInsurance.transfer(balance);
                 state = State.closed;
             }
+            //check luggage lost
         } else if(now > flight.timeLanded + timeLimitLuggageLost){
+            //in case luggage is lost throw InsuranceAmountPaid and transfer insurance amount
             emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
              insuree.addressInsuree.transfer(balance);
              state = State.closed;
