@@ -1,4 +1,5 @@
-pragma solidity ^0.5.4;
+pragma solidity 0.5.5;
+import "./InsuranceContractManager.sol";
 
 contract LuggageInsuranceContract {
     
@@ -42,18 +43,24 @@ contract LuggageInsuranceContract {
         inactive, active, revoked, closed
     }
     
+    enum ClaimState{
+        none, delay, lost
+    }
+    
     //store structs
     Flight public flight;
     Luggage public luggage;
     Insuree public insuree;
     
-    //addresse
-    address payable private addressInsurance = 0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c;
+    // save a InsuranceContractManager
+    InsuranceContractManager insuranceContractManagerInstance;
+    
     address private addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
     //premium
     uint premium= 5 ether;
     //store enum
     State public state;
+    ClaimState public claimState;
     //overall contract balance
     uint public balance;
     //saves time when the Smart Contract is activated
@@ -65,7 +72,7 @@ contract LuggageInsuranceContract {
     //saves the timeLimit for LuggageLost
     uint public timeLimitLuggageLost = 90 minutes;
     //saves the timeLimit for PayOut
-    uint public timeLimitForPayOut = 30 minutes;
+    uint public timeLimitForPayOut = 20 seconds;
     
     //modifier for onlyBy condition
     modifier onlyBy(address _account) {
@@ -93,12 +100,15 @@ contract LuggageInsuranceContract {
     event NoClaim(uint _balance, State _state);
     
     //constructor 
-    constructor() public payable{
+    constructor(address payable addressInsuranceContractManager) public payable{
         require(addressOracle != msg.sender);
-        require(addressInsurance != msg.sender);
         insuree = Insuree(false, msg.sender);
+        insuranceContractManagerInstance = InsuranceContractManager(addressInsuranceContractManager);
+        insuranceContractManagerInstance.saveContract(insuree.addressInsuree);
         state = State.inactive;
+        claimState = ClaimState.none;
     }
+    
     //setFlight() function
     function setFlight(
         string memory flightNumber,
@@ -124,6 +134,7 @@ contract LuggageInsuranceContract {
          //throw Event PremiumPaid() 
         emit PremiumPaid(msg.value, state);
     }
+     
     //checkInLuggage() function
     function checkInLuggage(string memory _luggageID) public onlyBy(addressOracle) ifState(State.active) {
         require(!luggage.initialized);
@@ -167,33 +178,40 @@ contract LuggageInsuranceContract {
             checkClaim();
         }
     }
-    //checkClaim() function
     function checkClaim() public payable ifState(State.active) ifLanded() {
-        // check luggage delay
+        //send premium to InsuranceContractManager Account
+        insuranceContractManagerInstance.receiveMoney.value(balance)();
+         // check luggage delay
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
             if (timeDifference > timeLimitForPayOut) {
                 //in case there is an delay throw InsuranceAmountPaid() and transfer insurance amount to insuree
-                emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
-                insuree.addressInsuree.transfer(balance);
                 state = State.closed;
+                claimState = ClaimState.delay;
+                insuranceContractManagerInstance.payout();
+                emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
             } else {
                 //in case there is no delay throw NoClaim and transfer premium to insurance
-                emit NoClaim(balance, state);
-                addressInsurance.transfer(balance);
                 state = State.closed;
+                emit NoClaim(balance, state);
             }
             //check luggage lost
         } else if(now > flight.timeLanded + timeLimitLuggageLost){
             //in case luggage is lost throw InsuranceAmountPaid and transfer insurance amount
+            state = State.closed;
+            claimState = ClaimState.lost;
+            insuranceContractManagerInstance.payout();
             emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
-             insuree.addressInsuree.transfer(balance);
-             state = State.closed;
         }
     }
+    
     //getState() function returns State, flight.landed, flight.initialized, luggage.onBelt and luggage.initialized
     function getState() public view returns (State, bool, bool, bool, bool){
         return (state, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
+    }
+    
+    function getAddressInsuree() public view returns(address payable) {
+        return insuree.addressInsuree;
     }
     //compareStrings() function to compare strings by their hashes
     function compareStrings(string memory a, string memory b) internal pure returns (bool){
