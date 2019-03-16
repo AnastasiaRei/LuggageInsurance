@@ -14,13 +14,14 @@ contract InsuranceContractManager {
         insureeToContractMapping[addressInsuree] = LuggageInsuranceContract(msg.sender);
         initializedContracts[msg.sender] = true;
     }
+    
     function payout() public {
         require(initializedContracts[msg.sender]);
         LuggageInsuranceContract luggageInsuranceContract = LuggageInsuranceContract(msg.sender);
-        //to do: check contract eligable for payout
-        require(luggageInsuranceContract.state() == LuggageInsuranceContract.State.active);
+        require(luggageInsuranceContract.state() == LuggageInsuranceContract.State.closed);
         require(luggageInsuranceContract.claimState() != LuggageInsuranceContract.ClaimState.none);
-        luggageInsuranceContract.getAddressInsuree().transfer(1000000000000000000);
+        address payable addressInsuree = luggageInsuranceContract.getAddressInsuree();
+        addressInsuree.transfer(1 ether);
     }
     function getBalance() public view returns(uint){
         return address(this).balance;
