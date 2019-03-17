@@ -4,7 +4,7 @@ import "./LuggageInsuranceContract.sol";
 contract InsuranceContractManager {
     struct InsuranceContractConditions {
         uint premium;
-        uint amountDealy;
+        uint amountDelay;
         uint amountLost;
         uint revokeTimeLimit;
         uint timeLimitLuggageLost;
@@ -18,7 +18,7 @@ contract InsuranceContractManager {
 
     constructor(
         uint premium,
-        uint amountDealy,
+        uint amountDelay,
         uint amountLost,
         uint revokeTimeLimit,
         uint timeLimitLuggageLost,
@@ -27,7 +27,7 @@ contract InsuranceContractManager {
         owner = msg.sender;
         insuranceContractConditions = InsuranceContractConditions(
             premium,
-            amountDealy,
+            amountDelay,
             amountLost,
             revokeTimeLimit,
             timeLimitLuggageLost,
@@ -37,7 +37,7 @@ contract InsuranceContractManager {
 
     function setContractConditions(
         uint premium,
-        uint amountDealy,
+        uint amountDelay,
         uint amountLost,
         uint revokeTimeLimit,
         uint timeLimitLuggageLost,
@@ -46,7 +46,7 @@ contract InsuranceContractManager {
         require(owner == msg.sender);
         insuranceContractConditions = InsuranceContractConditions(
             premium,
-            amountDealy,
+            amountDelay,
             amountLost,
             revokeTimeLimit,
             timeLimitLuggageLost,

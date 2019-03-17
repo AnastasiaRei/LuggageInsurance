@@ -105,7 +105,7 @@ contract LuggageInsuranceContract {
         insuranceContractManagerInstance.saveContract(insuree.addressInsuree);
         (
             uint premium,
-            uint amountDealy,
+            uint amountDelay,
             uint amountLost,
             uint revokeTimeLimit,
             uint timeLimitLuggageLost,
@@ -113,7 +113,7 @@ contract LuggageInsuranceContract {
         ) = insuranceContractManagerInstance.insuranceContractConditions();
         insuranceContractConditions = InsuranceContractManager.InsuranceContractConditions(
             premium,
-            amountDealy,
+            amountDelay,
             amountLost,
             revokeTimeLimit,
             timeLimitLuggageLost,
@@ -202,8 +202,8 @@ contract LuggageInsuranceContract {
                 //in case there is an delay throw InsuranceAmountPaid() and transfer insurance amount to insuree
                 state = State.closed;
                 claimState = ClaimState.delay;
-                insuranceContractManagerInstance.payout(insuranceContractConditions.amountDealy);
-                emit InsuranceAmountPaid(insuranceContractConditions.amountDealy, insuree.addressInsuree, state);
+                insuranceContractManagerInstance.payout(insuranceContractConditions.amountDelay);
+                emit InsuranceAmountPaid(insuranceContractConditions.amountDelay, insuree.addressInsuree, state);
             } else {
                 //in case there is no delay throw NoClaim and transfer premium to insurance
                 state = State.closed;
