@@ -93,9 +93,9 @@ contract LuggageInsuranceContract {
     //event to show premium was paid and contract activated
     event PremiumPaid(uint _premium, State _state);
     //event to show insurance amount was paid to insuree
-    event InsuranceAmountPaid(uint _balance, address _addressInsuree, State _state);
+    event InsuranceAmountPaid(uint _amount, address _addressInsuree, State _state);
     //event to show there was no claim as premium was paid to insurance
-    event NoClaim(uint _balance, State _state);
+    event NoClaim(State _state);
     
     //constructor 
     constructor(address payable addressInsuranceContractManager) public payable{
@@ -207,7 +207,7 @@ contract LuggageInsuranceContract {
             } else {
                 //in case there is no delay throw NoClaim and transfer premium to insurance
                 state = State.closed;
-                emit NoClaim(balance, state);
+                emit NoClaim(state);
             }
             //check luggage lost
         } else if(now > flight.timeLanded + insuranceContractConditions.timeLimitLuggageLost){
