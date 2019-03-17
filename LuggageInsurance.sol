@@ -56,8 +56,7 @@ contract LuggageInsuranceContract {
     InsuranceContractManager insuranceContractManagerInstance;
     
     address private addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
-    //premium
-    uint premium= 5 ether;
+    
     //store enum
     State public state;
     ClaimState public claimState;
@@ -65,14 +64,13 @@ contract LuggageInsuranceContract {
     uint public balance;
     //saves time when the Smart Contract is activated
     uint timeContractActivated;
-    //saves the timeLimit for a revoke
-    uint public revokeTimeLimit = 14 days;
+    
     //saves the timeDifference between flight.timelanded and luggage.timeOnBelt
     uint public timeDifference;
     //saves the timeLimit for LuggageLost
-    uint public timeLimitLuggageLost = 90 minutes;
-    //saves the timeLimit for PayOut
-    uint public timeLimitForPayOut = 20 seconds;
+    
+    InsuranceContractManager.InsuranceContractConditions public insuranceContractConditions;
+    
     
     //modifier for onlyBy condition
     modifier onlyBy(address _account) {
@@ -105,6 +103,22 @@ contract LuggageInsuranceContract {
         insuree = Insuree(false, msg.sender);
         insuranceContractManagerInstance = InsuranceContractManager(addressInsuranceContractManager);
         insuranceContractManagerInstance.saveContract(insuree.addressInsuree);
+        (
+            uint premium,
+            uint amountDealy,
+            uint amountLost,
+            uint revokeTimeLimit,
+            uint timeLimitLuggageLost,
+            uint timeLimitForPayOut
+        ) = insuranceContractManagerInstance.insuranceContractConditions();
+        insuranceContractConditions = InsuranceContractManager.InsuranceContractConditions(
+            premium,
+            amountDealy,
+            amountLost,
+            revokeTimeLimit,
+            timeLimitLuggageLost,
+            timeLimitForPayOut
+        );
         state = State.inactive;
         claimState = ClaimState.none;
     }
@@ -127,11 +141,11 @@ contract LuggageInsuranceContract {
     //payPremium() function
     function payPremium() public payable onlyBy(insuree.addressInsuree) ifState(State.inactive) {
         require(flight.initialized);
-        require(msg.value == premium);
+        require(msg.value == insuranceContractConditions.premium);
         balance += msg.value;
         state = State.active;
         timeContractActivated = now;
-         //throw Event PremiumPaid() 
+         //throw Event PremiumPaid()
         emit PremiumPaid(msg.value, state);
     }
      
@@ -142,7 +156,7 @@ contract LuggageInsuranceContract {
     }
     //revokeContract() function
     function revokeContract() public onlyBy(insuree.addressInsuree) ifState(State.active) {
-        require(now <= timeContractActivated + revokeTimeLimit);
+        require(now <= timeContractActivated + insuranceContractConditions.revokeTimeLimit);
         require(!insuree.boarded);
         insuree.addressInsuree.transfer(balance);
         state = State.revoked;
@@ -184,24 +198,24 @@ contract LuggageInsuranceContract {
          // check luggage delay
         if(luggage.onBelt) {
             timeDifference = luggage.timeOnBelt - flight.timeLanded;
-            if (timeDifference > timeLimitForPayOut) {
+            if (timeDifference > insuranceContractConditions.timeLimitForPayOut) {
                 //in case there is an delay throw InsuranceAmountPaid() and transfer insurance amount to insuree
                 state = State.closed;
                 claimState = ClaimState.delay;
-                insuranceContractManagerInstance.payout();
-                emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
+                insuranceContractManagerInstance.payout(insuranceContractConditions.amountDealy);
+                emit InsuranceAmountPaid(insuranceContractConditions.amountDealy, insuree.addressInsuree, state);
             } else {
                 //in case there is no delay throw NoClaim and transfer premium to insurance
                 state = State.closed;
                 emit NoClaim(balance, state);
             }
             //check luggage lost
-        } else if(now > flight.timeLanded + timeLimitLuggageLost){
+        } else if(now > flight.timeLanded + insuranceContractConditions.timeLimitLuggageLost){
             //in case luggage is lost throw InsuranceAmountPaid and transfer insurance amount
             state = State.closed;
             claimState = ClaimState.lost;
-            insuranceContractManagerInstance.payout();
-            emit InsuranceAmountPaid(balance, insuree.addressInsuree, state);
+            insuranceContractManagerInstance.payout(insuranceContractConditions.amountLost);
+            emit InsuranceAmountPaid(insuranceContractConditions.amountLost, insuree.addressInsuree, state);
         }
     }
     
