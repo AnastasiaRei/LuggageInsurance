@@ -55,7 +55,9 @@ contract LuggageInsuranceContract {
     // save a InsuranceContractManager
     InsuranceContractManager insuranceContractManagerInstance;
     
-    address private addressOracle = 0xdD870fA1b7C4700F2BD7f44238821C26f7392148;
+    // TODO:change address oracle when implementing oraclize
+    address public addressOracle;
+    address public addressBackend;
     
     //store enum
     State public state;
@@ -98,19 +100,21 @@ contract LuggageInsuranceContract {
     event NoClaim(State _state);
     
     //constructor 
-    constructor(address payable addressInsuranceContractManager) public payable{
-        require(addressOracle != msg.sender);
-        insuree = Insuree(false, msg.sender);
-        insuranceContractManagerInstance = InsuranceContractManager(addressInsuranceContractManager);
-        insuranceContractManagerInstance.saveContract(insuree.addressInsuree);
-        (
-            uint premium,
-            uint amountDelay,
-            uint amountLost,
-            uint revokeTimeLimit,
-            uint timeLimitLuggageLost,
-            uint timeLimitForPayOut
-        ) = insuranceContractManagerInstance.insuranceContractConditions();
+    constructor(
+        address payable addressInsuree,
+        address backend,
+        uint premium,
+        uint amountDelay,
+        uint amountLost,
+        uint revokeTimeLimit,
+        uint timeLimitLuggageLost,
+        uint timeLimitForPayOut
+    ) public payable {
+        // require dao address
+        // require(addressOracle != msg.sender);
+        insuree = Insuree(false, addressInsuree);
+        insuranceContractManagerInstance = InsuranceContractManager(msg.sender);
+        
         insuranceContractConditions = InsuranceContractManager.InsuranceContractConditions(
             premium,
             amountDelay,
@@ -119,6 +123,8 @@ contract LuggageInsuranceContract {
             timeLimitLuggageLost,
             timeLimitForPayOut
         );
+        addressBackend = backend;
+        addressOracle = backend;
         state = State.inactive;
         claimState = ClaimState.none;
     }
@@ -140,8 +146,8 @@ contract LuggageInsuranceContract {
     }
     //payPremium() function
     function payPremium() public payable onlyBy(insuree.addressInsuree) ifState(State.inactive) {
-        require(flight.initialized);
-        require(msg.value == insuranceContractConditions.premium);
+        require(flight.initialized, "Flight must be initialized.");
+        require(msg.value == insuranceContractConditions.premium, "Must send exact premium value.");
         balance += msg.value;
         state = State.active;
         timeContractActivated = now;
@@ -150,20 +156,20 @@ contract LuggageInsuranceContract {
     }
      
     //checkInLuggage() function
-    function checkInLuggage(string memory _luggageID) public onlyBy(addressOracle) ifState(State.active) {
+    function checkInLuggage(string memory _luggageID) public onlyBy(addressBackend) ifState(State.active) {
         require(!luggage.initialized);
         luggage = Luggage(_luggageID, false, 0, true);
     }
     //revokeContract() function
     function revokeContract() public onlyBy(insuree.addressInsuree) ifState(State.active) {
         require(now <= timeContractActivated + insuranceContractConditions.revokeTimeLimit);
-        require(!insuree.boarded);
+        require(!insuree.boarded, "Insuree must not have been boarded yet.");
         insuree.addressInsuree.transfer(balance);
         state = State.revoked;
     }
     //boardingPassenger() function
-    function boardingPassenger(address _addressInsuree) public onlyBy(addressOracle) {
-        require(_addressInsuree == insuree.addressInsuree);
+    function boardingPassenger(address _addressInsuree) public onlyBy(addressBackend) {
+        require(_addressInsuree == insuree.addressInsuree, "Must send address of insuree.");
         require(luggage.initialized);
         require(!insuree.boarded);
         insuree.boarded = true;
@@ -173,7 +179,7 @@ contract LuggageInsuranceContract {
         require(insuree.boarded);
         require(!flight.landed);
         //compare the hashes of two strings in order to find out whether status is landed
-        if(compareStrings(flightState, "landed")){
+        if(compareStrings(flightState, "LD")){
             flight.landed = true;
             flight.timeLanded = now;
             //setTimeOut function that triggers checkcailm function 1 hours after time landed
@@ -182,8 +188,8 @@ contract LuggageInsuranceContract {
         }
     }
     //setLuggageState() function
-    function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressOracle) ifState(State.active) ifLanded() {
-        require(compareStrings(_luggageID, luggage.id));
+    function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressBackend) ifState(State.active) ifLanded() {
+        require(compareStrings(_luggageID, luggage.id), "Must be same luggage id.");
         require(!luggage.onBelt);
         //check state onBelt
         if(_onBelt == true){
