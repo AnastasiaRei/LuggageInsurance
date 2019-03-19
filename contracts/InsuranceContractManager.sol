@@ -12,11 +12,13 @@ contract InsuranceContractManager {
     }
 
     address owner;
+    address addressBackend;
     mapping(address => LuggageInsuranceContract) public insureeToContractMapping;
     mapping(address => bool) public initializedContracts;
     InsuranceContractConditions public insuranceContractConditions;
 
     constructor(
+        address _addressBackend,
         uint premium,
         uint amountDelay,
         uint amountLost,
@@ -25,6 +27,7 @@ contract InsuranceContractManager {
         uint timeLimitForPayOut
     ) public {
         owner = msg.sender;
+        addressBackend = _addressBackend;
         insuranceContractConditions = InsuranceContractConditions(
             premium,
             amountDelay,
@@ -43,7 +46,7 @@ contract InsuranceContractManager {
         uint timeLimitLuggageLost,
         uint timeLimitForPayOut
     ) public {
-        require(owner == msg.sender);
+        require(owner == msg.sender, 'Owner must change contract conditions.');
         insuranceContractConditions = InsuranceContractConditions(
             premium,
             amountDelay,
@@ -54,9 +57,28 @@ contract InsuranceContractManager {
         );
     }
     
-    function saveContract(address addressInsuree) public {
-        insureeToContractMapping[addressInsuree] = LuggageInsuranceContract(msg.sender);
-        initializedContracts[msg.sender] = true;
+    function setBackendAddress(address _addressBackend) public {
+        require(owner == msg.sender, 'Owner must change backend address.');
+        addressBackend = _addressBackend;
+    }
+
+    function createContract() public returns(address) {
+        address payable addressInsuree = msg.sender;
+        LuggageInsuranceContract insuranceContract = new LuggageInsuranceContract(
+            addressInsuree,
+            addressBackend,
+            insuranceContractConditions.premium,
+            insuranceContractConditions.amountDelay,
+            insuranceContractConditions.amountLost,
+            insuranceContractConditions.revokeTimeLimit,
+            insuranceContractConditions.timeLimitLuggageLost,
+            insuranceContractConditions.timeLimitForPayOut
+        );
+        insureeToContractMapping[addressInsuree] = insuranceContract;
+        
+        address addressInsuranceContract = address(insuranceContract);
+        initializedContracts[addressInsuranceContract] = true;
+        return addressInsuranceContract;
     }
     
     function payout(uint amountToPay) public {
