@@ -17,8 +17,8 @@ contract("LuggageInsuranceContract", accounts => {
   const insuree = accounts[1];
   const notInsuree = accounts[2];
   const backend = accounts[3];
-  const flightNumber = "LH1234";
-  const departureDay = 1234;
+  const flightNumber = "LH2037";
+  const departureDay = '2019-03-18';
   const plannedArrival = 2345;
   const luggageId = "luggage-id";
   const premium = conditions.premium;
@@ -30,7 +30,7 @@ contract("LuggageInsuranceContract", accounts => {
   beforeEach("setup new insurance contract", async () => {
     const insuranceContractManager = await InsuranceContractManager.deployed();
 
-    await insuranceContractManager.createContract({
+    await insuranceContractManager.createContract(true, {
       from: insuree
     });
 
@@ -63,7 +63,7 @@ contract("LuggageInsuranceContract", accounts => {
 
   it("insuree can set flight", async () => {
     await catchRevert(
-      instance.setFlight("LH123", 1234, 2345, {
+      instance.setFlight("LH123", "1234", 2345, {
         from: notInsuree
       }),
       "Sender not authorized."
@@ -244,7 +244,6 @@ contract("LuggageInsuranceContract", accounts => {
     // );
   });
 
-  // TODO oracle and interval
   it("oracle can set flight data", async () => {
     await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree

@@ -9,7 +9,7 @@ contract LuggageInsuranceContract is usingOraclize {
         //flightNumber for insured luggage travel
         string flightNumber;
         //saves day of departure
-        uint departureDay;
+        string departureDay;
         uint plannedArrival;
         //saves state flight landed in destination airport
         bool landed;
@@ -74,6 +74,8 @@ contract LuggageInsuranceContract is usingOraclize {
     //saves the timeLimit for LuggageLost
     
     InsuranceContractManager.InsuranceContractConditions public insuranceContractConditions;
+    // only for testing purposes
+    bool public test;
     
     
     //modifier for onlyBy condition
@@ -115,7 +117,8 @@ contract LuggageInsuranceContract is usingOraclize {
         uint amountLost,
         uint revokeTimeLimit,
         uint timeLimitLuggageLost,
-        uint timeLimitForPayOut
+        uint timeLimitForPayOut,
+        bool isTest
     ) public payable {
         // require dao address
         // require(addressOracle != msg.sender);
@@ -134,12 +137,13 @@ contract LuggageInsuranceContract is usingOraclize {
         addressOracle = backend;
         state = State.inactive;
         claimState = ClaimState.none;
+        test = isTest;
     }
     
     //setFlight() function
     function setFlight(
         string memory flightNumber,
-        uint departureDay,
+        string memory departureDay,
         uint plannedArrival
     ) public onlyBy(insuree.addressInsuree) ifState(State.inactive){
         flight = Flight(
@@ -182,10 +186,11 @@ contract LuggageInsuranceContract is usingOraclize {
         require(luggage.initialized);
         require(!insuree.boarded);
         insuree.boarded = true;
-        // oraclize query
-        emit LogNewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-        // TODO: tokenize call
-        oraclize_query("URL", "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=LH2037&date=2019-03-16).data.FlightStatusResource.Flights.Flight.FlightStatus.Code");
+        uint triggerTimeout = flight.plannedArrival - now;
+        if(test){
+            triggerTimeout = 1;
+        }
+        requestFlightState(triggerTimeout);
     }
 
     function __callback(bytes32 myid, string memory result) public onlyBy(oraclize_cbAddress()) {
@@ -197,10 +202,21 @@ contract LuggageInsuranceContract is usingOraclize {
             flight.timeLanded = now;
             emit FlightLanded(address(this), insuree.addressInsuree);
         } else {
-            // TODO: tokenize call
             // update flight state all 10 minutes as long as the flight is not landed
-            oraclize_query(600,"URL", "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=LH2037&date=2019-03-16).data.FlightStatusResource.Flights.Flight.FlightStatus.Code");
+            requestFlightState(600);
         }
+    }
+
+    function requestFlightState(uint triggerTimeout) private {
+        string memory query = strConcat(
+            "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=",
+            flight.flightNumber,
+            '&date=',
+            flight.departureDay,
+            ").data.FlightStatusResource.Flights.Flight.FlightStatus.Code"
+        );
+        oraclize_query(triggerTimeout, "URL", query);
+        emit LogNewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
     }
 
     //setLuggageState() function

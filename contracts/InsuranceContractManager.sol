@@ -62,7 +62,7 @@ contract InsuranceContractManager {
         addressBackend = _addressBackend;
     }
 
-    function createContract() public returns(address) {
+    function createContract(bool test) public returns(address) {
         address payable addressInsuree = msg.sender;
         LuggageInsuranceContract insuranceContract = new LuggageInsuranceContract(
             addressInsuree,
@@ -72,7 +72,8 @@ contract InsuranceContractManager {
             insuranceContractConditions.amountLost,
             insuranceContractConditions.revokeTimeLimit,
             insuranceContractConditions.timeLimitLuggageLost,
-            insuranceContractConditions.timeLimitForPayOut
+            insuranceContractConditions.timeLimitForPayOut,
+            test
         );
         insureeToContractMapping[addressInsuree] = insuranceContract;
         

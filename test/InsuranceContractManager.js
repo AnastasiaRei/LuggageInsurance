@@ -94,7 +94,7 @@ contract("InsuranceContractManager", accounts => {
   });
 
   it("should create the InsuranceContract", async () => {
-    await insuranceContractManager.createContract({
+    await insuranceContractManager.createContract(true, {
       from: insuree
     });
 
