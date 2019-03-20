@@ -1,7 +1,8 @@
 pragma solidity 0.5.5;
 import "./InsuranceContractManager.sol";
+import "./oraclize/oraclizeAPI_0.5.sol";
 
-contract LuggageInsuranceContract {
+contract LuggageInsuranceContract is usingOraclize {
     
     //create a Flight datatype
     struct Flight {
@@ -9,6 +10,7 @@ contract LuggageInsuranceContract {
         string flightNumber;
         //saves day of departure
         uint departureDay;
+        uint plannedArrival;
         //saves state flight landed in destination airport
         bool landed;
         //saves timestamp the flight is landed
@@ -98,7 +100,12 @@ contract LuggageInsuranceContract {
     event InsuranceAmountPaid(uint _amount, address _addressInsuree, State _state);
     //event to show there was no claim as premium was paid to insurance
     event NoClaim(State _state);
-    
+    event LogNewOraclizeQuery(string description);
+    event LogFlightStatus(string status);
+    event FlightLanded(address addressLuggageContract, address addressInsuree);
+    string public flightStatus;
+
+
     //constructor 
     constructor(
         address payable addressInsuree,
@@ -132,11 +139,13 @@ contract LuggageInsuranceContract {
     //setFlight() function
     function setFlight(
         string memory flightNumber,
-        uint departureDay
+        uint departureDay,
+        uint plannedArrival
     ) public onlyBy(insuree.addressInsuree) ifState(State.inactive){
         flight = Flight(
             flightNumber,
             departureDay,
+            plannedArrival,
             false,
             0, 
             true
@@ -173,20 +182,27 @@ contract LuggageInsuranceContract {
         require(luggage.initialized);
         require(!insuree.boarded);
         insuree.boarded = true;
+        // oraclize query
+        emit LogNewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
+        // TODO: tokenize call
+        oraclize_query("URL", "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=LH2037&date=2019-03-16).data.FlightStatusResource.Flights.Flight.FlightStatus.Code");
     }
-    //setFlightState() function
-    function setFlightState(string memory flightState) public onlyBy(addressOracle) {
-        require(insuree.boarded);
-        require(!flight.landed);
-        //compare the hashes of two strings in order to find out whether status is landed
-        if(compareStrings(flightState, "LD")){
+
+    function __callback(bytes32 myid, string memory result) public onlyBy(oraclize_cbAddress()) {
+        // require(msg.sender == oraclize_cbAddress());
+        emit LogFlightStatus(result);
+        flightStatus = result;
+        if(compareStrings(flightStatus, "LD")){
             flight.landed = true;
             flight.timeLanded = now;
-            //setTimeOut function that triggers checkcailm function 1 hours after time landed
-        }else {
-            //ask oracle again in some time
+            emit FlightLanded(address(this), insuree.addressInsuree);
+        } else {
+            // TODO: tokenize call
+            // update flight state all 10 minutes as long as the flight is not landed
+            oraclize_query(600,"URL", "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=LH2037&date=2019-03-16).data.FlightStatusResource.Flights.Flight.FlightStatus.Code");
         }
     }
+
     //setLuggageState() function
     function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressBackend) ifState(State.active) ifLanded() {
         require(compareStrings(_luggageID, luggage.id), "Must be same luggage id.");

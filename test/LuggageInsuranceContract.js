@@ -1,6 +1,11 @@
+const Web3 = require("web3");
 const catchRevert = require("./exceptions.js");
 const timeTravel = require("./timeTravel.js");
+const { waitForEvent } = require("./utils");
 const conditions = require("../migrations/InsuranceContractConditions");
+const web3 = new Web3(
+  new Web3.providers.WebsocketProvider("ws://localhost:9545")
+);
 const InsuranceContractManager = artifacts.require(
   "./InsuranceContractManager.sol"
 );
@@ -14,46 +19,68 @@ contract("LuggageInsuranceContract", accounts => {
   const backend = accounts[3];
   const flightNumber = "LH1234";
   const departureDay = 1234;
+  const plannedArrival = 2345;
   const luggageId = "luggage-id";
   const premium = conditions.premium;
   let instance;
+  let addressContract;
+  let instanceMethods;
+  let instanceEvents;
 
   beforeEach("setup new insurance contract", async () => {
     const insuranceContractManager = await InsuranceContractManager.deployed();
+
     await insuranceContractManager.createContract({
       from: insuree
     });
 
-    const addressContract = await insuranceContractManager.insureeToContractMapping(
+    addressContract = await insuranceContractManager.insureeToContractMapping(
       insuree
     );
     // console.log("insuree", insuree);
     // console.log("manager", insuranceContractManager.address);
 
     instance = await LuggageInsuranceContract.at(addressContract);
+
+    // console.log("meine gute", instance);
+    // console.log("meine methods", instance.methods);
+    // console.log("meine events", instance.events);
+
+    const contract = instance.contract;
+
+    const { methods, events } = new web3.eth.Contract(
+      contract._jsonInterface,
+      contract._address
+    );
+    // console.log("methods", methods);
+    // console.log("events", events);
+    instanceMethods = methods;
+    instanceEvents = events;
+
     const state = await instance.state();
     assert.equal(state, 0);
   });
 
   it("insuree can set flight", async () => {
     await catchRevert(
-      instance.setFlight("LH123", 1234, {
+      instance.setFlight("LH123", 1234, 2345, {
         from: notInsuree
       }),
       "Sender not authorized."
     );
 
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     const flight = await instance.flight();
     assert.equal(flight.flightNumber, flightNumber);
     assert.equal(flight.departureDay, departureDay);
+    assert.equal(flight.plannedArrival, plannedArrival);
     assert.equal(flight.landed, false);
   });
 
   it("insuree can pay premium", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
 
@@ -83,7 +110,7 @@ contract("LuggageInsuranceContract", accounts => {
   });
 
   it("backend can check in luggage", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -108,7 +135,7 @@ contract("LuggageInsuranceContract", accounts => {
   });
 
   it("backend can board passenger", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -137,12 +164,36 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
+    const {
+      returnValues: { description }
+    } = await waitForEvent(instanceEvents.LogNewOraclizeQuery);
+
+    assert.strictEqual(
+      description,
+      "Oraclize query was sent, standing by for the answer...",
+      "Oraclize query incorrectly logged!"
+    );
+
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
+
+    const {
+      returnValues: { addressLuggageContract, addressInsuree }
+    } = await waitForEvent(instanceEvents.FlightLanded);
+    assert.equal(addressLuggageContract, addressContract);
+    assert.equal(addressInsuree, insuree);
+
+    const flightStatus = await instance.flightStatus();
+    assert.equal(flightStatus, "LD");
+
     const insur = await instance.insuree();
     assert.equal(insur.boarded, true);
   });
 
   it("insuree cannot revoke after boarding", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -164,7 +215,7 @@ contract("LuggageInsuranceContract", accounts => {
 
   // TODO check real transaction value flow
   it("insuree can revoke", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -195,7 +246,7 @@ contract("LuggageInsuranceContract", accounts => {
 
   // TODO oracle and interval
   it("oracle can set flight data", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -209,23 +260,17 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    await catchRevert(
-      instance.setFlightState("LD", {
-        from: insuree
-      }),
-      "Sender not authorized."
-    );
-
-    await instance.setFlightState("LD", {
-      from: backend
-    });
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
 
     const flight = await instance.flight();
     assert.equal(flight.landed, true);
   });
 
   it("backend can set luggage state", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -239,9 +284,10 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    await instance.setFlightState("LD", {
-      from: backend
-    });
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
 
     await catchRevert(
       instance.setLuggageState(luggageId, true, {
@@ -265,7 +311,7 @@ contract("LuggageInsuranceContract", accounts => {
   });
 
   it("check claim: no claim", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -279,9 +325,10 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    await instance.setFlightState("LD", {
-      from: backend
-    });
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
 
     await instance.setLuggageState(luggageId, true, {
       from: backend
@@ -294,7 +341,7 @@ contract("LuggageInsuranceContract", accounts => {
   });
 
   it("check claim: delayed", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -308,9 +355,10 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    await instance.setFlightState("LD", {
-      from: backend
-    });
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
 
     await timeTravel(conditions.timeLimitForPayOut + 1);
 
@@ -325,7 +373,7 @@ contract("LuggageInsuranceContract", accounts => {
   });
 
   it("check claim: lost", async () => {
-    await instance.setFlight(flightNumber, departureDay, {
+    await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
     });
     instance.payPremium({
@@ -339,9 +387,10 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    await instance.setFlightState("LD", {
-      from: backend
-    });
+    const {
+      returnValues: { status }
+    } = await waitForEvent(instanceEvents.LogFlightStatus);
+    assert.equal(status, "LD");
 
     await timeTravel(conditions.timeLimitLuggageLost + 1);
 
