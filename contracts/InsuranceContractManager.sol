@@ -11,6 +11,10 @@ contract InsuranceContractManager {
         uint timeLimitForPayOut;
     }
 
+    event CreatedContract(address indexed addressInsuree, address indexed addressContract);
+    event SendPayout(address indexed addressInsuree, uint amount, LuggageInsuranceContract.ClaimState claimState);
+    event ReceivedMoney(address indexed sender, uint amount);
+
     address owner;
     address addressBackend;
     mapping(address => LuggageInsuranceContract) public insureeToContractMapping;
@@ -79,19 +83,26 @@ contract InsuranceContractManager {
         
         address addressInsuranceContract = address(insuranceContract);
         initializedContracts[addressInsuranceContract] = true;
+        emit CreatedContract(addressInsuree, addressInsuranceContract);
         return addressInsuranceContract;
     }
-    
+
     function payout(uint amountToPay) public {
         require(initializedContracts[msg.sender]);
         LuggageInsuranceContract luggageInsuranceContract = LuggageInsuranceContract(msg.sender);
         require(luggageInsuranceContract.state() == LuggageInsuranceContract.State.closed);
-        require(luggageInsuranceContract.claimState() != LuggageInsuranceContract.ClaimState.none);
+        LuggageInsuranceContract.ClaimState claimState = luggageInsuranceContract.claimState();
+        require(claimState != LuggageInsuranceContract.ClaimState.none);
         address payable addressInsuree = luggageInsuranceContract.getAddressInsuree();
         addressInsuree.transfer(amountToPay);
+        emit SendPayout(addressInsuree,  amountToPay, claimState);
     }
-    function getBalance() public view returns(uint){
+
+    function getBalance() public view returns(uint) {
         return address(this).balance;
     }
-    function receiveMoney() external payable{ }
+
+    function receiveMoney() external payable {
+        emit ReceivedMoney(msg.sender, msg.value);
+    }
 }

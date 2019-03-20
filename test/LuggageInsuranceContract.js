@@ -157,7 +157,7 @@ contract("LuggageInsuranceContract", accounts => {
       instance.boardingPassenger(backend, {
         from: backend
       }),
-      "Must send address of insuree."
+      "Must be a valid insuree address."
     );
 
     await instance.boardingPassenger(insuree, {
@@ -185,8 +185,8 @@ contract("LuggageInsuranceContract", accounts => {
     assert.equal(addressLuggageContract, addressContract);
     assert.equal(addressInsuree, insuree);
 
-    const flightStatus = await instance.flightStatus();
-    assert.equal(flightStatus, "LD");
+    const flight = await instance.flight();
+    assert.equal(flight.landed, true);
 
     const insur = await instance.insuree();
     assert.equal(insur.boarded, true);
