@@ -244,7 +244,7 @@ contract LuggageInsuranceContract is usingOraclize {
                 claimState = ClaimState.delay;
                 insuranceContractManagerInstance.payout(insuranceContractConditions.amountDelay);
             } else {
-                //in case there is no delay throw NoClaim and transfer premium to insurance
+                //in case there is no delay throw NoClaim
                 state = State.closed;
                 emit NoClaim(insuree.addressInsuree, address(this), state);
             }
@@ -257,10 +257,8 @@ contract LuggageInsuranceContract is usingOraclize {
         }
     }
     
-    // TODO: do we need? extend with new data
-    //getState() function returns State, flight.landed, flight.initialized, luggage.onBelt and luggage.initialized
-    function getState() public view returns (State, bool, bool, bool, bool){
-        return (state, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
+    function getState() public view returns (State, ClaimState, bool, bool, bool, bool){
+        return (state, claimState, flight.landed, flight.initialized, luggage.onBelt, luggage.initialized);
     }
     
     function getAddressInsuree() public view returns(address payable) {

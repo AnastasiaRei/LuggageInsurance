@@ -61,6 +61,17 @@ contract("LuggageInsuranceContract", accounts => {
     assert.equal(state, 0);
   });
 
+  it("front end can get contract's states", async () => {
+    const state = await instance.getState();
+    
+    assert.equal(state[0], 0);
+    assert.equal(state[1], 0);
+    assert.equal(state[2], false);
+    assert.equal(state[3], false);
+    assert.equal(state[4], false);
+    assert.equal(state[5], false);
+  })
+
   it("insuree can set flight", async () => {
     await catchRevert(
       instance.setFlight("LH123", "1234", 2345, {
