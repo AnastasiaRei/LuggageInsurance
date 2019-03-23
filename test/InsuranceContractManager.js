@@ -1,5 +1,6 @@
 const catchRevert = require("./exceptions.js");
 const conditions = require("../migrations/InsuranceContractConditions");
+
 const InsuranceContractManager = artifacts.require(
   "./InsuranceContractManager.sol"
 );
@@ -75,7 +76,9 @@ contract("InsuranceContractManager", accounts => {
 
   it("should change backend address", async () => {
     await catchRevert(
-      insuranceContractManager.setBackendAddress(backend, { from: notOwner }),
+      insuranceContractManager.setBackendAddress(backend, {
+        from: notOwner
+      }),
       "Owner must change backend address."
     );
     await insuranceContractManager.setBackendAddress(backend);
@@ -107,5 +110,54 @@ contract("InsuranceContractManager", accounts => {
     );
 
     assert.equal(isContractInitialized, true);
+  });
+});
+
+contract.skip("InsuranceContractManager", accounts => {
+  const owner = accounts[0];
+  const backend = accounts[3];
+
+  it("should calaculate gas cost of InsuranceContractManger related functions", async () => {
+    InsuranceContractManager.web3.eth.getGasPrice(async (error, result) => {
+      const gasPrice = Number(result);
+      console.log(`Gas Price is ${gasPrice} wei`);
+
+      // Get Contract instance
+      const instance = await InsuranceContractManager.deployed();
+
+      const priceGetInsuranceContractConditions = await instance.insuranceContractConditions.estimateGas();
+      const priceSetInsuranceContractConditions = await instance.setContractConditions.estimateGas(
+        conditions.premium,
+        conditions.amountDelay,
+        conditions.amountLost,
+        conditions.revokeTimeLimit,
+        conditions.timeLimitLuggageLost,
+        100,
+        { from: owner }
+      );
+      const priceSetBackendAddress = await instance.setBackendAddress.estimateGas(
+        backend
+      );
+      const priceGetBalance = await instance.getBalance.estimateGas();
+      const priceReceiveMoney = await instance.receiveMoney.estimateGas({
+        from: owner,
+        value: 20000
+      });
+      const priceCreateContract = await instance.createContract.estimateGas(
+        true
+      );
+
+      console.log(
+        "insuranceContractConditions",
+        priceGetInsuranceContractConditions
+      );
+      console.log("setContractConditions", priceSetInsuranceContractConditions);
+      console.log("setBackendAddress", priceSetBackendAddress);
+      console.log("getBalance", priceGetBalance);
+      console.log("receiveMoney", priceReceiveMoney);
+      console.log("createContract", priceCreateContract);
+
+      assert.equal(gasPrice, 2000000000);
+    });
   });
 });

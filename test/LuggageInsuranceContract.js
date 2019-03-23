@@ -3,6 +3,7 @@ const catchRevert = require("./exceptions.js");
 const timeTravel = require("./timeTravel.js");
 const { waitForEvent } = require("./utils");
 const conditions = require("../migrations/InsuranceContractConditions");
+
 const web3 = new Web3(
   new Web3.providers.WebsocketProvider("ws://localhost:9545")
 );
@@ -13,15 +14,16 @@ const LuggageInsuranceContract = artifacts.require(
   "./LuggageInsuranceContract.sol"
 );
 
+const flightNumber = "LH2037";
+const departureDay = "2019-03-23";
+const plannedArrival = 2345;
+const luggageId = "luggage-id";
+const { premium } = conditions;
+
 contract("LuggageInsuranceContract", accounts => {
   const insuree = accounts[1];
   const notInsuree = accounts[2];
   const backend = accounts[3];
-  const flightNumber = "LH2037";
-  const departureDay = '2019-03-18';
-  const plannedArrival = 2345;
-  const luggageId = "luggage-id";
-  const premium = conditions.premium;
   let instance;
   let addressContract;
   let instanceMethods;
@@ -37,23 +39,16 @@ contract("LuggageInsuranceContract", accounts => {
     addressContract = await insuranceContractManager.insureeToContractMapping(
       insuree
     );
-    // console.log("insuree", insuree);
-    // console.log("manager", insuranceContractManager.address);
 
     instance = await LuggageInsuranceContract.at(addressContract);
 
-    // console.log("meine gute", instance);
-    // console.log("meine methods", instance.methods);
-    // console.log("meine events", instance.events);
-
-    const contract = instance.contract;
+    const { contract } = instance;
 
     const { methods, events } = new web3.eth.Contract(
       contract._jsonInterface,
       contract._address
     );
-    // console.log("methods", methods);
-    // console.log("events", events);
+
     instanceMethods = methods;
     instanceEvents = events;
 
@@ -63,14 +58,14 @@ contract("LuggageInsuranceContract", accounts => {
 
   it("front end can get contract's states", async () => {
     const state = await instance.getState();
-    
+
     assert.equal(state[0], 0);
     assert.equal(state[1], 0);
     assert.equal(state[2], false);
     assert.equal(state[3], false);
     assert.equal(state[4], false);
     assert.equal(state[5], false);
-  })
+  });
 
   it("insuree can set flight", async () => {
     await catchRevert(
@@ -224,7 +219,6 @@ contract("LuggageInsuranceContract", accounts => {
     );
   });
 
-  // TODO check real transaction value flow
   it("insuree can revoke", async () => {
     await instance.setFlight(flightNumber, departureDay, plannedArrival, {
       from: insuree
@@ -237,22 +231,10 @@ contract("LuggageInsuranceContract", accounts => {
       from: backend
     });
 
-    // const instanceBalanceBefore = await instance.balance();
-    // const insureeBalanceBefore = await web3.eth.getBalance(insuree);
     await instance.revokeContract({ from: insuree });
-    // const instanceBalanceAfter = await instance.balance();
-    // const insureeBalanceAfter = await web3.eth.getBalance(insuree);
 
     const state = await instance.state();
     assert.equal(state, 2);
-    // assert.equal(
-    //   instanceBalanceAfter,
-    //   instanceBalanceBefore - conditions.premium
-    // );
-    // assert.equal(
-    //   insureeBalanceAfter,
-    //   insureeBalanceBefore + conditions.premium
-    // );
   });
 
   it("oracle can set flight data", async () => {
@@ -412,5 +394,126 @@ contract("LuggageInsuranceContract", accounts => {
     const claimState = await instance.claimState();
     assert.equal(state, 3);
     assert.equal(claimState, 2);
+  });
+});
+
+contract.skip("LuggageInsuranceContract", accounts => {
+  const insuree = accounts[1];
+  const backend = accounts[3];
+
+  it("should calaculate gas cost of LuggageInsuranceContract related functions", async () => {
+    InsuranceContractManager.web3.eth.getGasPrice(async (error, result) => {
+      const gasPrice = Number(result);
+      console.log(`Gas Price is ${gasPrice} wei`);
+
+      const insuranceContractManager = await InsuranceContractManager.deployed();
+
+      await insuranceContractManager.createContract(true, {
+        from: insuree
+      });
+
+      const addressContract = await insuranceContractManager.insureeToContractMapping(
+        insuree
+      );
+
+      const instance = await LuggageInsuranceContract.at(addressContract);
+
+      const { contract } = instance;
+
+      const { events } = new web3.eth.Contract(
+        contract._jsonInterface,
+        contract._address
+      );
+
+      const priceGetState = await instance.getState.estimateGas();
+      const priceState = await instance.state.estimateGas();
+      const priceClaimState = await instance.claimState.estimateGas();
+      const priceFlight = await instance.flight.estimateGas();
+      const priceLuggage = await instance.luggage.estimateGas();
+      const priceInsuree = await instance.insuree.estimateGas();
+      const priceGetAddressInsuree = await instance.getAddressInsuree.estimateGas();
+      const priceBalance = await instance.balance.estimateGas();
+      const priceTimeDifference = await instance.timeDifference.estimateGas();
+      const priceSetFlight = await instance.setFlight.estimateGas(
+        flightNumber,
+        departureDay,
+        plannedArrival,
+        {
+          from: insuree
+        }
+      );
+      await instance.setFlight(flightNumber, departureDay, plannedArrival, {
+        from: insuree
+      });
+      const pricePayPremium = await instance.payPremium.estimateGas({
+        from: insuree,
+        value: premium
+      });
+      instance.payPremium({
+        from: insuree,
+        value: premium
+      });
+
+      const priceRevoke = await instance.revokeContract.estimateGas({
+        from: insuree
+      });
+
+      const priceCheckInLuggage = await instance.checkInLuggage.estimateGas(
+        luggageId,
+        {
+          from: backend
+        }
+      );
+      await instance.checkInLuggage(luggageId, {
+        from: backend
+      });
+
+      const priceBoardingPassenger = await instance.boardingPassenger.estimateGas(
+        insuree,
+        {
+          from: backend
+        }
+      );
+      await instance.boardingPassenger(insuree, {
+        from: backend
+      });
+
+      console.log("getState", priceGetState);
+      console.log("state", priceState);
+      console.log("claimState", priceClaimState);
+      console.log("flight", priceFlight);
+      console.log("luggage", priceLuggage);
+      console.log("insuree", priceInsuree);
+      console.log("balance", priceBalance);
+      console.log("timeDifference", priceTimeDifference);
+      console.log("getAddressInsuree", priceGetAddressInsuree);
+      console.log("setFlight", priceSetFlight);
+      console.log("payPremium", pricePayPremium);
+
+      console.log("revokeContract", priceRevoke);
+      console.log("checkInLuggage", priceCheckInLuggage);
+      console.log("boardingPassenger", priceBoardingPassenger);
+
+      const {
+        returnValues: { status }
+      } = await waitForEvent(events.LogFlightStatus);
+      assert.equal(status, "LD");
+
+      const priceCheckClaim = await instance.checkClaim.estimateGas();
+      console.log("checkClaim", priceCheckClaim);
+
+      await timeTravel(conditions.timeLimitForPayOut + 1);
+
+      const priceSetLuggageState = await instance.setLuggageState.estimateGas(
+        luggageId,
+        true,
+        {
+          from: backend
+        }
+      );
+      console.log("setLuggageState", priceSetLuggageState);
+
+      assert.equal(gasPrice, 2000000000);
+    });
   });
 });
