@@ -12,11 +12,23 @@
   },
   "dependencies": {
     "bluebird": "^3.5.3",
+    "eslint-plugin-react": "^7.12.4",
     "ethereum-bridge": "^0.6.2",
     "lodash": "^4.17.11",
+    "prettier": "^1.16.4",
     "web3": "1.0.0-beta.46"
   },
   "scripts": {
     "bridge": "./node_modules/.bin/ethereum-bridge -a 9 -H 127.0.0.1 -p 9545 --dev"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.1",
+    "eslint": "^5.15.3",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-babel": "^9.0.0",
+    "eslint-config-prettier": "^4.1.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-prettier": "^3.0.1"
   }
 }
