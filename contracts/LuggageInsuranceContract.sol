@@ -6,45 +6,33 @@ contract LuggageInsuranceContract is usingOraclize {
     
     //create a Flight datatype
     struct Flight {
-        //flightNumber for insured luggage travel
         string flightNumber;
-        //saves day of departure
         string departureDay;
         uint plannedArrival;
-        //saves state flight landed in destination airport
         bool landed;
-        //saves timestamp the flight is landed
         uint timeLanded;
-        //flight is initialized
         bool initialized;
     }
     
     //create a Luggage datatype
     struct Luggage {
-        //saves luggageID
         string id;
-        //is the luggage onBelt in destination airport
         bool onBelt; 
-        //saves timestamp when luggage is on belt
         uint timeOnBelt;
-        //luggage is initialized
         bool initialized;
     }
     
     //create a Insuree datatype
     struct Insuree {
-        //insuree is boarded in departure airport
         bool boarded;
-        //addressInsuree
         address payable addressInsuree;
     }
     
-    // create a State enum 
+    //overall Contract State
     enum State {
-        //contract inactive till premium not paid, after premium paid active, can be revoked and is closed when insuree or insurance address gets balance
         inactive, active, revoked, closed
     }
-    
+    //Claim State
     enum ClaimState{
         none, delay, lost
     }
@@ -54,7 +42,7 @@ contract LuggageInsuranceContract is usingOraclize {
     Luggage public luggage;
     Insuree public insuree;
     
-    // save a InsuranceContractManager
+    //save a InsuranceContractManager
     InsuranceContractManager insuranceContractManagerInstance;
     
     address public addressBackend;
@@ -69,10 +57,9 @@ contract LuggageInsuranceContract is usingOraclize {
     
     //saves the timeDifference between flight.timelanded and luggage.timeOnBelt
     uint public timeDifference;
-    //saves the timeLimit for LuggageLost
-    
+
     InsuranceContractManager.InsuranceContractConditions public insuranceContractConditions;
-    // only for testing purposes
+    //only for testing purposes
     bool public test;
     
     
@@ -136,7 +123,7 @@ contract LuggageInsuranceContract is usingOraclize {
         claimState = ClaimState.none;
         test = isTest;
     }
-    
+    //sets the Flight details
     function setFlight(
         string memory flightNumber,
         string memory departureDay,
@@ -158,7 +145,7 @@ contract LuggageInsuranceContract is usingOraclize {
             plannedArrival
         );
     }
-
+    // transfers premium
     function payPremium() public payable onlyBy(insuree.addressInsuree) ifState(State.inactive) {
         require(flight.initialized, "Flight must be initialized.");
         require(msg.value == insuranceContractConditions.premium, "Must send exact premium value.");
@@ -167,13 +154,13 @@ contract LuggageInsuranceContract is usingOraclize {
         timeContractActivated = now;
         emit PaidPremium(insuree.addressInsuree, msg.value, state);
     }
-     
+    //sets the Luggage details
     function checkInLuggage(string memory _luggageID) public onlyBy(addressBackend) ifState(State.active) {
         require(!luggage.initialized);
         luggage = Luggage(_luggageID, false, 0, true);
         emit CheckedInLuggage(insuree.addressInsuree, _luggageID);
     }
-
+    //revokes the contract and sends the premium back
     function revokeContract() public onlyBy(insuree.addressInsuree) ifState(State.active) {
         require(now <= timeContractActivated + insuranceContractConditions.revokeTimeLimit);
         require(!insuree.boarded, "Insuree must not have been boarded yet.");
@@ -181,7 +168,7 @@ contract LuggageInsuranceContract is usingOraclize {
         state = State.revoked;
         emit RevokedContract(insuree.addressInsuree, balance, state);
     }
-
+    //sets insuree.boarded and triggers requestFlightState()
     function boardingPassenger(address _addressInsuree) public onlyBy(addressBackend) {
         require(_addressInsuree == insuree.addressInsuree, "Must be a valid insuree address.");
         require(luggage.initialized);
@@ -194,7 +181,7 @@ contract LuggageInsuranceContract is usingOraclize {
         }
         requestFlightState(triggerTimeout);
     }
-
+    //callback to get the results from oraclize query
     function __callback(bytes32 myid, string memory result) public onlyBy(oraclize_cbAddress()) {
         emit LogFlightStatus(result, flight.flightNumber, flight.departureDay);
         
@@ -207,7 +194,7 @@ contract LuggageInsuranceContract is usingOraclize {
             requestFlightState(600);
         }
     }
-
+    //API Call, asks oraclize to do a query for flightStatus with a certain URL
     function requestFlightState(uint triggerTimeout) private {
         string memory query = strConcat(
             "json(https://orcalize-backend-test.herokuapp.com/flight?api_token=b03bb840bb7b8fe31e0b69ea8c24aab649450c0aa7fe22656cbf1e980a1b729a&flightnumber=",
@@ -219,7 +206,7 @@ contract LuggageInsuranceContract is usingOraclize {
         oraclize_query(triggerTimeout, "URL", query);
         emit LogNewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
     }
-
+    //sets luggage.onBelt
     function setLuggageState(string memory _luggageID, bool _onBelt) public onlyBy(addressBackend) ifState(State.active) ifLanded() {
         require(compareStrings(_luggageID, luggage.id), "Must be same luggage id.");
         require(!luggage.onBelt);
@@ -231,7 +218,7 @@ contract LuggageInsuranceContract is usingOraclize {
             checkClaim();
         }
     }
-
+    //checks whether a claim is happened and transfers amounts
     function checkClaim() public payable ifState(State.active) ifLanded() {
         //send premium to InsuranceContractManager Account
         insuranceContractManagerInstance.receiveMoney.value(balance)();
