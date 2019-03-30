@@ -15,10 +15,16 @@ const LuggageInsuranceContract = artifacts.require(
 );
 
 const flightNumber = "LH2037";
-const departureDay = "2019-03-23";
+const departureDay = new Date(Date.now() - 172800000)
+  .toISOString()
+  .slice(0, 10);
 const plannedArrival = 2345;
 const luggageId = "luggage-id";
 const { premium } = conditions;
+
+console.log("Starting test with:");
+console.log("flightNumber", flightNumber);
+console.log("departureDay", departureDay);
 
 contract("LuggageInsuranceContract", accounts => {
   const insuree = accounts[1];
