@@ -1,6 +1,6 @@
 # Luggage Insurance Smart Contract Example
 
-TODO: description
+An insuree is able to procure a luggage Insurance Contract for a certain luggage and flight. The InsuranceContractManager created the luggageInsuranceContracts for this use case and manages them. After the flight is executed and the airplane landed there will be a check for a potential claim. In case the luggage is delayed or lost there will be a transfer of the insuranceAmount to the insuree. 
 
 ## Installation
 
